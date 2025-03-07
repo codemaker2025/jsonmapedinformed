@@ -35,12 +35,33 @@ const useValidation = () => {
     return (value, context) =>
       genericValidate(value, { ...context, type: field.type });
   }, [validateNameField, genericValidate]);
+  const validateFile = (value) => {
+    if (value instanceof File) {
+      const validMimeTypes = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ];
+      const validExtensions = [".pdf", ".doc", ".docx"];
 
+      const fileExtension = "." + value.name.split(".").pop().toLowerCase();
+      const fileMimeType = value.type;
+
+      if (
+        !validMimeTypes.includes(fileMimeType) ||
+        !validExtensions.includes(fileExtension)
+      ) {
+        return "Only PDF, DOC, and DOCX files are allowed";
+      }
+    }
+    return undefined;
+  };
   return {
     validateNameField,
     genericValidate,
     validatePhone,
     getValidation,
+    validateFile
   };
 };
 

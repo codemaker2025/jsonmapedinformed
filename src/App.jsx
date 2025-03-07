@@ -121,6 +121,7 @@ export default function App() {
                           key={field.id}
                           {...commonProps}
                           accept={field.accept}
+                          
                         />
                       );
 

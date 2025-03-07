@@ -3,12 +3,27 @@ import { useField } from "informed";
 
 const CustomFileInput = ({ id, label, required, accept }) => {
   const validateFile = (value) => {
-    if (id === "resume") {
-      if (value instanceof File) {
-        const maxSizeInBytes = 10 * 1024 * 1024; // 5MB
-        if (value.size > maxSizeInBytes) {
-          return "File size must not exceed 10MB";
-        }
+    // Handle the "required" case
+    if (required && !value) {
+      return "This field is required";
+    }
+
+    if (value instanceof File) {
+      const validMimeTypes = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ];
+      const validExtensions = [".pdf", ".doc", ".docx"];
+
+      const fileExtension = "." + value.name.split(".").pop().toLowerCase();
+      const fileMimeType = value.type;
+
+      if (
+        !validMimeTypes.includes(fileMimeType) ||
+        !validExtensions.includes(fileExtension)
+      ) {
+        return "Only PDF, DOC, and DOCX files are allowed";
       }
     }
     return undefined;
@@ -23,11 +38,12 @@ const CustomFileInput = ({ id, label, required, accept }) => {
     validateOnMount: false,
   });
 
-  const { setValue, setTouched, setError } = fieldApi;
+  const { setValue, setTouched } = fieldApi;
   const fileInputRef = useRef(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [fileType, setFileType] = useState(null);
   const [prevValue, setPrevValue] = useState(fieldState.value);
+  const [errorMessage, setErrorMessage] = useState(null); // Local error state
 
   useEffect(() => {
     return () => {
@@ -42,20 +58,22 @@ const CustomFileInput = ({ id, label, required, accept }) => {
 
     if (!file) {
       resetFileInput();
+      setErrorMessage(required ? "This field is required" : null); // Set required error if applicable
       return;
     }
 
     const validationResult = validateFile(file);
 
     if (validationResult) {
-      setError(validationResult);
+      setErrorMessage(validationResult); // Set local error
+      setTouched(true);
       resetFileInput();
     } else {
+      setErrorMessage(null); // Clear error on success
       setValue(file);
       setTouched(true);
       setPrevValue(file);
       setFileType(file.type);
-
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
     }
@@ -63,7 +81,6 @@ const CustomFileInput = ({ id, label, required, accept }) => {
 
   const resetFileInput = () => {
     setValue(null);
-    setError(undefined);
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
@@ -74,6 +91,13 @@ const CustomFileInput = ({ id, label, required, accept }) => {
     }
     setPrevValue(null);
   };
+
+  // Sync fieldState.error with local errorMessage when no file is selected
+  useEffect(() => {
+    if (!fieldState.value && fieldState.touched && fieldState.error) {
+      setErrorMessage(fieldState.error); // Reflect "required" error
+    }
+  }, [fieldState.value, fieldState.touched, fieldState.error]);
 
   if (
     !fieldState.value &&
@@ -138,21 +162,6 @@ const CustomFileInput = ({ id, label, required, accept }) => {
             View File
           </a>
 
-          {previewUrl && fileType?.startsWith("image/") && (
-            <div>
-              <p style={{ margin: "0 0 4px", color: "#333" }}>Preview:</p>
-              <img
-                src={previewUrl}
-                alt="File Preview"
-                style={{
-                  maxWidth: "200px",
-                  maxHeight: "200px",
-                  borderRadius: "4px",
-                }}
-              />
-            </div>
-          )}
-
           {previewUrl && fileType === "application/pdf" && (
             <div>
               <p style={{ margin: "0 0 4px", color: "#333" }}>PDF Preview:</p>
@@ -170,9 +179,10 @@ const CustomFileInput = ({ id, label, required, accept }) => {
           )}
         </div>
       )}
-      {fieldState.error && fieldState.touched && (
+      {/* Display errorMessage if present */}
+      {errorMessage && (
         <small style={{ color: "red", marginTop: "4px", display: "block" }}>
-          {fieldState.error}
+          {errorMessage}
         </small>
       )}
     </div>
